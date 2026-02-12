@@ -36,18 +36,30 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
     try {
       final token = _tokenController.text.trim();
-      await ref.read(storageServiceProvider).saveApiToken(token);
-      // Force refresh of providers by invalidating
+      final storage = ref.read(storageServiceProvider);
+      await storage.saveApiToken(token);
       ref.invalidate(githubServiceProvider);
-      // Also potentially invalidate user data if we want immediate refresh
-      // ref.invalidate(userProfileProvider);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('API Token saved successfully')),
-        );
-        Navigator.pop(context);
+      final service = ref.read(githubServiceProvider);
+      final me = await service.getAuthenticatedUser();
+
+      if (me != null) {
+        await storage.saveAuthenticatedUser(me.login);
+        ref.invalidate(authenticatedUserProvider);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Logged in as ${me.login}')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Token saved, but could not verify user. Check permissions.')),
+          );
+        }
       }
+
+      if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -127,4 +139,3 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 }
-

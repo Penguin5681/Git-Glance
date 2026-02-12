@@ -26,4 +26,17 @@ class StorageService {
   String? getApiToken() {
     return _prefs.getString(AppConstants.apiTokenKey);
   }
+
+  Future<void> saveAuthenticatedUser(String username) async {
+    await _prefs.setString(AppConstants.authenticatedUserKey, username);
+  }
+
+  String? getAuthenticatedUser() {
+    return _prefs.getString(AppConstants.authenticatedUserKey);
+  }
+
+  Future<void> clearAuthData() async {
+    await _prefs.remove(AppConstants.apiTokenKey);
+    await _prefs.remove(AppConstants.authenticatedUserKey);
+  }
 }

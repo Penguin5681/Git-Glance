@@ -59,8 +59,32 @@ class GitHubService {
     }
   }
 
-  Future<List<RepositoryModel>> getUserRepos(String username) async {
-    final url = Uri.parse('${AppConstants.githubApiBaseUrl}/users/$username/repos?sort=updated&per_page=100');
+  Future<UserModel?> getAuthenticatedUser() async {
+    final url = Uri.parse('${AppConstants.githubApiBaseUrl}/user');
+    final response = await client.get(url, headers: _headers);
+
+    if (response.statusCode == 200) {
+      return UserModel.fromJson(jsonDecode(response.body));
+    } else {
+      return null;
+    }
+  }
+
+  Future<List<RepositoryModel>> getUserRepos(String username, {bool isCurrentUser = false}) async {
+    // If it's the authenticated user, we might want to see private repos.
+    // The endpoint /user/repos lists repos the authenticated user has access to (including private, orgs, etc.)
+    // But it requires "type" parameter or similar to filter. Default is generic.
+    // /users/{username}/repos only lists public unless we own it?
+    // According to docs: "GET /users/{username}/repos lists public repositories for the specified user."
+    // "To access private repositories, use GET /user/repos."
+
+    final Uri url;
+    if (isCurrentUser) {
+       url = Uri.parse('${AppConstants.githubApiBaseUrl}/user/repos?sort=updated&per_page=100&type=all');
+    } else {
+       url = Uri.parse('${AppConstants.githubApiBaseUrl}/users/$username/repos?sort=updated&per_page=100');
+    }
+
     final response = await client.get(url, headers: _headers);
 
     if (response.statusCode == 200) {

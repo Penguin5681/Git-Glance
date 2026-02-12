@@ -6,6 +6,7 @@ class AppConstants {
   static const String githubApiBaseUrl = 'https://api.github.com';
   static const String bookmarkedUsersKey = 'bookmarked_users';
   static const String apiTokenKey = 'api_token';
+  static const String authenticatedUserKey = 'authenticated_user';
 }
 
 class AppTheme {

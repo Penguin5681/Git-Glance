@@ -83,8 +83,18 @@ final searchResultsProvider = StreamProvider.autoDispose<List<UserModel>>((ref) 
   return Stream.fromFuture(githubService.searchUsers(query));
 });
 
-// Provider for fetching repositories for a user
+// Authenticated User Provider
+final authenticatedUserProvider = Provider<String?>((ref) {
+  final storageService = ref.watch(storageServiceProvider);
+  return storageService.getAuthenticatedUser();
+});
+
+// Update userReposProvider to verify if we are fetching for the logged in user
 final userReposProvider = FutureProvider.family<List<RepositoryModel>, String>((ref, username) async {
   final githubService = ref.watch(githubServiceProvider);
-  return githubService.getUserRepos(username);
+  final authUser = ref.watch(authenticatedUserProvider);
+  // Check if requested username matches stored authenticated user
+  final isCurrentUser = authUser != null && authUser.toLowerCase() == username.toLowerCase();
+
+  return githubService.getUserRepos(username, isCurrentUser: isCurrentUser);
 });

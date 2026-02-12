@@ -275,51 +275,64 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
       return const Center(child: Text('Select a user to view activity'));
     }
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-            // Detailed Profile Header
-            profileAsync.when(
-                data: (user) => user != null ? UserProfileHeader(user: user) : const SizedBox(),
-                loading: () => const LinearProgressIndicator(),
-                error: (_,__) => const SizedBox(),
-            ),
-            const Divider(),
-
-             // Tab Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: TabBar(
-                controller: _tabController,
-                indicatorColor: Theme.of(context).colorScheme.primary,
-                labelColor: Theme.of(context).colorScheme.primary,
-                unselectedLabelColor: Colors.grey,
-                tabs: const [
-                  Tab(text: "Activity"),
-                  Tab(text: "Repositories"),
-                ],
+    return RefreshIndicator(
+      onRefresh: () async {
+        // Invalidate providers to force refresh
+        if (selectedUser != null) {
+          ref.invalidate(userProfileProvider(selectedUser));
+          ref.invalidate(userActivityProvider);
+          ref.invalidate(userReposProvider(selectedUser));
+          // Wait a bit to ensure UI updates or just return
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+      },
+      child: SingleChildScrollView(
+         physics: const AlwaysScrollableScrollPhysics(), // Ensure refresh works even if content is short
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+              // Detailed Profile Header
+              profileAsync.when(
+                  data: (user) => user != null ? UserProfileHeader(user: user) : const SizedBox(),
+                  loading: () => const LinearProgressIndicator(),
+                  error: (_,__) => const SizedBox(),
               ),
-            ),
+              const Divider(),
 
-             AnimatedBuilder(
-              animation: _tabController,
-              builder: (context, _) {
-                 if (_tabController.index == 0) {
-                   return const Padding(
-                    padding: EdgeInsets.only(top: 10),
-                    child: ActivityFeed(),
-                   );
-                 } else {
-                   return Padding(
-                     padding: const EdgeInsets.only(top: 10),
-                     child: RepositoryList(username: selectedUser),
-                   );
-                 }
-              },
-            ),
-            const SizedBox(height: 50),
-        ],
+               // Tab Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: TabBar(
+                  controller: _tabController,
+                  indicatorColor: Theme.of(context).colorScheme.primary,
+                  labelColor: Theme.of(context).colorScheme.primary,
+                  unselectedLabelColor: Colors.grey,
+                  tabs: const [
+                    Tab(text: "Activity"),
+                    Tab(text: "Repositories"),
+                  ],
+                ),
+              ),
+
+               AnimatedBuilder(
+                animation: _tabController,
+                builder: (context, _) {
+                   if (_tabController.index == 0) {
+                     return const Padding(
+                      padding: EdgeInsets.only(top: 10),
+                      child: ActivityFeed(),
+                     );
+                   } else {
+                     return Padding(
+                       padding: const EdgeInsets.only(top: 10),
+                       child: RepositoryList(username: selectedUser),
+                     );
+                   }
+                },
+              ),
+              const SizedBox(height: 50),
+          ],
+        ),
       ),
     );
   }
@@ -413,13 +426,21 @@ class ActivityFeed extends ConsumerWidget {
   }
 }
 
-class EventCard extends StatelessWidget {
+class EventCard extends StatefulWidget {
   final EventModel event;
 
   const EventCard({super.key, required this.event});
 
+  @override
+  State<EventCard> createState() => _EventCardState();
+}
+
+class _EventCardState extends State<EventCard> {
+  bool _isExpanded = false;
+  // ...existing code to map colors/icons...
   Color _getEventColor(String type) {
-    switch (type) {
+     // ...existing code...
+     switch (type) {
       case 'PushEvent':
         return AppTheme.eventPush;
       case 'PullRequestEvent':
@@ -432,6 +453,7 @@ class EventCard extends StatelessWidget {
   }
 
   IconData _getEventIcon(String type) {
+    // ...existing code...
     switch (type) {
       case 'PushEvent':
         return Icons.commit;
@@ -448,50 +470,135 @@ class EventCard extends StatelessWidget {
     }
   }
 
+  // Helper to build details widget
+  Widget _buildDetails(BuildContext context) {
+    final payload = widget.event.payload;
+    if (widget.event.type == 'PushEvent') {
+       final commits = payload['commits'] as List?;
+       if (commits == null || commits.isEmpty) return const SizedBox.shrink();
+       return Column(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+            const Divider(),
+            const Text('Commits:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            const SizedBox(height: 4),
+            ...commits.map((c) => Padding(
+              padding: const EdgeInsets.only(bottom: 2.0),
+              child: Text(
+                '- ${c['message'] ?? 'No message'}',
+                style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                 maxLines: 2, overflow: TextOverflow.ellipsis,
+              ),
+            )),
+         ],
+       );
+    } else if (widget.event.type == 'PullRequestEvent') {
+       final pr = payload['pull_request'];
+       if (pr == null) return const SizedBox.shrink();
+       return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+             const Divider(),
+             Text(pr['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+             if (pr['body'] != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  (pr['body'] as String).take(100),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 3,
+                )
+             ]
+          ],
+       );
+    }
+    return const SizedBox.shrink();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _getEventColor(event.type).withValues(alpha: 0.2),
-          child: Icon(_getEventIcon(event.type), color: _getEventColor(event.type)),
-        ),
-        title: Text(
-          event.description,
-          style: GoogleFonts.robotoMono(fontWeight: FontWeight.bold, fontSize: 13),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              event.repoName,
-              style: TextStyle(color: Theme.of(context).colorScheme.primary),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: CircleAvatar(
+              backgroundColor: _getEventColor(widget.event.type).withValues(alpha: 0.2),
+              child: Icon(_getEventIcon(widget.event.type), color: _getEventColor(widget.event.type)),
             ),
-            const SizedBox(height: 4),
-            Text(
-              DateFormat.yMMMd().add_jms().format(event.createdAt.toLocal()),
-              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            title: Text(
+              widget.event.description,
+              style: GoogleFonts.robotoMono(fontWeight: FontWeight.bold, fontSize: 13),
             ),
-          ],
-        ),
-        onTap: () async {
-            // Verify repoName is valid before launching
-             if (event.repoName.isNotEmpty && event.repoName.contains('/')) {
-                final url = Uri.parse('https://github.com/${event.repoName}');
-                try {
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  }
-                } catch (e) {
-                  // Ignore launch errors
-                }
-             }
-        },
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  widget.event.repoName,
+                  style: TextStyle(color: Theme.of(context).colorScheme.primary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  DateFormat.yMMMd().add_jms().format(widget.event.createdAt.toLocal()),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+            trailing: IconButton(
+                icon: Icon(_isExpanded ? Icons.expand_less : Icons.expand_more),
+                onPressed: () {
+                    setState(() {
+                        _isExpanded = !_isExpanded;
+                    });
+                },
+            ),
+            onTap: () {
+                 setState(() {
+                    _isExpanded = !_isExpanded;
+                 });
+            },
+          ),
+          if (_isExpanded)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                      _buildDetails(context),
+                      const SizedBox(height: 12),
+                      Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                              onPressed: () async {
+                                  // Open URL
+                                  if (widget.event.repoName.isNotEmpty && widget.event.repoName.contains('/')) {
+                                      final url = Uri.parse('https://github.com/${widget.event.repoName}');
+                                      try {
+                                        if (await canLaunchUrl(url)) {
+                                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                                        }
+                                      } catch (e) {
+                                        // Ignore
+                                      }
+                                  }
+                              },
+                              icon: const Icon(Icons.open_in_new, size: 16),
+                              label: const Text('Open Repo'),
+                          ),
+                      )
+                  ],
+                ),
+              )
+        ],
       ),
     );
   }
 }
 
-
-
+extension StringPreview on String {
+   String take(int n) {
+      if (length <= n) return this;
+      return substring(0, n) + '...';
+   }
+}
