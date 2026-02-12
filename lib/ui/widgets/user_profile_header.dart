@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'user_language_stats.dart';
 
 class UserProfileHeader extends StatelessWidget {
   final UserModel user;
@@ -114,6 +115,8 @@ class UserProfileHeader extends StatelessWidget {
                 ),
               ),
           ),
+          const SizedBox(height: 24),
+          UserLanguageStats(username: user.login),
         ],
       ),
     );
@@ -149,4 +152,6 @@ class UserProfileHeader extends StatelessWidget {
     );
   }
 }
+
+
 

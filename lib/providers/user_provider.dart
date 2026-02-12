@@ -98,3 +98,10 @@ final userReposProvider = FutureProvider.family<List<RepositoryModel>, String>((
 
   return githubService.getUserRepos(username, isCurrentUser: isCurrentUser);
 });
+
+// Trending Repositories Provider
+final trendingReposProvider = FutureProvider<List<RepositoryModel>>((ref) async {
+  final githubService = ref.watch(githubServiceProvider);
+  return githubService.getTrendingRepos();
+});
+

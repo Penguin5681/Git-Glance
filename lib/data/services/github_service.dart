@@ -94,4 +94,21 @@ class GitHubService {
       throw Exception('Failed to load repos');
     }
   }
+
+  Future<List<RepositoryModel>> getTrendingRepos() async {
+    // Get date 7 days ago
+    final date = DateTime.now().subtract(const Duration(days: 7));
+    final formattedDate = date.toIso8601String().split('T')[0];
+
+    final url = Uri.parse('${AppConstants.githubApiBaseUrl}/search/repositories?q=created:>$formattedDate&sort=stars&order=desc');
+    final response = await client.get(url, headers: _headers);
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> body = jsonDecode(response.body);
+      final List<dynamic> items = body['items'] ?? [];
+      return items.map((e) => RepositoryModel.fromJson(e)).toList();
+    } else {
+      throw Exception('Failed to load trending repos');
+    }
+  }
 }

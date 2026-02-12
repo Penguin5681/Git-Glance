@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/constants.dart';
 import 'data/services/storage_service.dart';
 import 'providers/user_provider.dart';
-import 'ui/home_page.dart';
+import 'ui/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +28,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: AppConstants.appName,
       theme: AppTheme.darkTheme,
-      home: const HomePage(),
+      home: const MainScreen(),
     );
   }
 }
