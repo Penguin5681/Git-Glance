@@ -15,9 +15,18 @@ class ExplorePage extends ConsumerWidget {
       appBar: AppBar(
         title: Text('Trending Repos', style: GoogleFonts.robotoMono(fontWeight: FontWeight.bold)),
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverPadding(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          try {
+            await ref.refresh(trendingReposProvider.future);
+          } catch (e) {
+            debugPrint('Error refreshing trending: $e');
+          }
+        },
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverPadding(
             padding: const EdgeInsets.all(16.0),
             sliver: SliverToBoxAdapter(
               child: Text(
@@ -82,7 +91,7 @@ class ExplorePage extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 

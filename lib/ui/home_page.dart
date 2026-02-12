@@ -277,17 +277,22 @@ class _HomePageState extends ConsumerState<HomePage> with SingleTickerProviderSt
 
     return RefreshIndicator(
       onRefresh: () async {
-        // Invalidate providers to force refresh
         if (selectedUser != null) {
-          ref.invalidate(userProfileProvider(selectedUser));
-          ref.invalidate(userActivityProvider);
-          ref.invalidate(userReposProvider(selectedUser));
-          // Wait a bit to ensure UI updates or just return
-          await Future.delayed(const Duration(milliseconds: 500));
+          // Force refresh providers and wait for completion
+          try {
+             await Future.wait([
+               ref.refresh(userProfileProvider(selectedUser).future),
+               ref.refresh(userActivityProvider.future),
+               ref.refresh(userReposProvider(selectedUser).future),
+             ]);
+          } catch (e) {
+            // Ignore errors during refresh to allow indicator to dismiss
+            debugPrint('Error refreshing: $e');
+          }
         }
       },
       child: SingleChildScrollView(
-         physics: const AlwaysScrollableScrollPhysics(), // Ensure refresh works even if content is short
+         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
